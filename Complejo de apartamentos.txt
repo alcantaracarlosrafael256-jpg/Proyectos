@@ -1,0 +1,91 @@
+package conjunto_de_apartamento;
+
+import java.util.Random;
+
+public class Conjunto_de_apartamento {
+
+    public static void main(String[] args) {
+
+        int torres = 7;
+        int pisos = 20;
+        int apartamentos = 6;
+
+        int[][][] personas = new int[torres][pisos][apartamentos];
+
+        int totalHabitantes = 0;
+
+        Random aleatorio = new Random();
+
+
+        for (int t = 0; t < torres; t++) {
+            for (int p = 0; p < pisos; p++) {
+                for (int a = 0; a < apartamentos; a++) {
+
+                    personas[t][p][a] = aleatorio.nextInt(5) + 1;
+                    totalHabitantes += personas[t][p][a];
+
+                }
+            }
+        }
+
+
+        for (int t = 0; t < torres; t++) {
+
+            System.out.println("TORRE " + (t + 1));
+            System.out.println();
+
+            for (int p = 0; p < pisos; p++) {
+
+                System.out.print("Piso " + (p + 1) + " :   ");
+
+                for (int a = 0; a < apartamentos; a++) {
+
+                    System.out.print(personas[t][p][a] + " personas   ");
+
+                }
+
+                System.out.println();
+            }
+
+            System.out.println();
+        }
+
+        System.out.println("Habitantes totales del complejo: " + totalHabitantes);
+        System.out.println();
+
+        
+        for (int p = 0; p < pisos; p++) {
+
+            int suma = 0;
+
+            for (int t = 0; t < torres; t++) {
+                for (int a = 0; a < apartamentos; a++) {
+                    suma += personas[t][p][a];
+                }
+            }
+
+            double promedio = (double) suma / (torres * apartamentos);
+
+            System.out.printf("Promedio de habitantes en el piso %d: %.2f\n", (p + 1), promedio);
+        }
+
+        System.out.println();
+
+    
+        for (int t = 0; t < torres; t++) {
+
+            int suma = 0;
+
+            for (int p = 0; p < pisos; p++) {
+                for (int a = 0; a < apartamentos; a++) {
+                    suma += personas[t][p][a];
+                }
+            }
+
+            double promedio = (double) suma / (pisos * apartamentos);
+
+            System.out.printf("Promedio de habitantes en la torre %d: %.2f\n", (t + 1), promedio);
+        }
+
+    }
+}
