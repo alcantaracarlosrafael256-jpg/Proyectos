@@ -1,0 +1,751 @@
+package mercadoplusrd;
+ 
+import java.util.*;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+ 
+// =====================
+// ENUM CATEGORIA
+// =====================
+enum Categoria {
+    GRANOS, CARNES, LACTEOS, PANADERIA, BEBIDAS, CONDIMENTOS, LIMPIEZA, SNACKS
+}
+ 
+// =====================
+// ENUM METODO DE PAGO
+// =====================
+enum MetodoPago {
+    EFECTIVO, TARJETA, TRANSFERENCIA
+}
+ 
+// =====================
+// CLASE PRODUCTO
+// =====================
+class Producto {
+ 
+    String nombre;
+    double precio;
+    int stock;
+    Categoria categoria;
+ 
+    public Producto(String nombre, double precio, int stock, Categoria categoria) {
+        this.nombre = nombre;
+        this.precio = precio;
+        this.stock = stock;
+        this.categoria = categoria;
+    }
+ 
+    public boolean tieneStock(int cantidad) {
+        return stock >= cantidad;
+    }
+ 
+    public void reducirStock(int cantidad) {
+        this.stock -= cantidad;
+    }
+ 
+    @Override
+    public String toString() {
+        return String.format("%-22s RD$%-8.2f [%s] Stock: %d",
+                nombre, precio, categoria.name(), stock);
+    }
+}
+ 
+// =====================
+// CLASE ITEM CARRITO
+// =====================
+class ItemCarrito {
+ 
+    Producto producto;
+    int cantidad;
+ 
+    public ItemCarrito(Producto producto, int cantidad) {
+        this.producto = producto;
+        this.cantidad = cantidad;
+    }
+ 
+    public double subtotal() {
+        return producto.precio * cantidad;
+    }
+ 
+    @Override
+    public String toString() {
+        return String.format("%-22s x%-4d RD$%.2f", producto.nombre, cantidad, subtotal());
+    }
+}
+ 
+// =====================
+// CLASE USUARIO
+// =====================
+class Usuario {
+ 
+    String username;
+    String password;
+    String nombreCompleto;
+    int intentosFallidos;
+    boolean bloqueado;
+ 
+    public Usuario(String username, String password, String nombreCompleto) {
+        this.username = username;
+        this.password = password;
+        this.nombreCompleto = nombreCompleto;
+        this.intentosFallidos = 0;
+        this.bloqueado = false;
+    }
+ 
+    public boolean verificarPassword(String pass) {
+        if (bloqueado) return false;
+        if (this.password.equals(pass)) {
+            intentosFallidos = 0;
+            return true;
+        } else {
+            intentosFallidos++;
+            if (intentosFallidos >= 3) bloqueado = true;
+            return false;
+        }
+    }
+}
+ 
+// =====================
+// CLASE HISTORIAL DE COMPRAS
+// =====================
+class Compra {
+ 
+    String fecha;
+    double total;
+    List<ItemCarrito> items;
+    String metodoPago;
+ 
+    public Compra(String fecha, double total, List<ItemCarrito> items, String metodoPago) {
+        this.fecha = fecha;
+        this.total = total;
+        this.items = new ArrayList<>(items);
+        this.metodoPago = metodoPago;
+    }
+}
+ 
+// =====================
+// CLASE CARRITO
+// =====================
+class Carrito {
+ 
+    List<ItemCarrito> items = new ArrayList<>();
+ 
+    public boolean agregarProducto(Producto p, int cantidad) {
+        // Verificar si ya existe en el carrito
+        for (ItemCarrito item : items) {
+            if (item.producto.nombre.equals(p.nombre)) {
+                int nuevaCantidad = item.cantidad + cantidad;
+                if (!p.tieneStock(nuevaCantidad)) {
+                    System.out.println("❌ Stock insuficiente. Disponible: " + p.stock);
+                    return false;
+                }
+                item.cantidad = nuevaCantidad;
+                System.out.println("✔ Cantidad actualizada en el carrito.");
+                return true;
+            }
+        }
+ 
+        if (!p.tieneStock(cantidad)) {
+            System.out.println("❌ Stock insuficiente. Disponible: " + p.stock);
+            return false;
+        }
+ 
+        items.add(new ItemCarrito(p, cantidad));
+        System.out.println("✔ " + p.nombre + " agregado al carrito.");
+        return true;
+    }
+ 
+    public void eliminarProducto(int index) {
+        if (index >= 0 && index < items.size()) {
+            System.out.println("✔ '" + items.get(index).producto.nombre + "' eliminado del carrito.");
+            items.remove(index);
+        } else {
+            System.out.println("❌ Índice inválido.");
+        }
+    }
+ 
+    public void modificarCantidad(int index, int nuevaCantidad) {
+        if (index >= 0 && index < items.size()) {
+            ItemCarrito item = items.get(index);
+            if (!item.producto.tieneStock(nuevaCantidad)) {
+                System.out.println("❌ Stock insuficiente. Disponible: " + item.producto.stock);
+                return;
+            }
+            item.cantidad = nuevaCantidad;
+            System.out.println("✔ Cantidad actualizada a " + nuevaCantidad);
+        } else {
+            System.out.println("❌ Índice inválido.");
+        }
+    }
+ 
+    public void vaciarCarrito() {
+        items.clear();
+        System.out.println("🗑️  Carrito vaciado.");
+    }
+ 
+    public double calcularTotal() {
+        double total = 0;
+        for (ItemCarrito item : items) {
+            total += item.subtotal();
+        }
+        return total;
+    }
+ 
+    public void mostrarCarrito() {
+        if (items.isEmpty()) {
+            System.out.println("\n🛒 El carrito está vacío.");
+            return;
+        }
+ 
+        System.out.println("\n╔══════════════════════════════════════════╗");
+        System.out.println("║              TU CARRITO                  ║");
+        System.out.println("╠══════════════════════════════════════════╣");
+        System.out.printf("  %-4s %-22s %-5s %-12s%n", "#", "Producto", "Cant", "Subtotal");
+        System.out.println("  ──────────────────────────────────────────");
+ 
+        for (int i = 0; i < items.size(); i++) {
+            ItemCarrito item = items.get(i);
+            System.out.printf("  %-4d %-22s %-5d RD$%.2f%n",
+                    (i + 1), item.producto.nombre, item.cantidad, item.subtotal());
+        }
+ 
+        System.out.println("  ──────────────────────────────────────────");
+        System.out.printf("  %-33s RD$%.2f%n", "TOTAL:", calcularTotal());
+        System.out.println("╚══════════════════════════════════════════╝");
+    }
+ 
+    public boolean estaVacio() {
+        return items.isEmpty();
+    }
+ 
+    public List<ItemCarrito> obtenerItems() {
+        return items;
+    }
+}
+ 
+// =====================
+// CLASE INVENTARIO
+// =====================
+class Inventario {
+ 
+    List<Producto> productos = new ArrayList<>();
+ 
+    public void inicializar() {
+        // GRANOS
+        productos.add(new Producto("Arroz (5lb)", 65, 100, Categoria.GRANOS));
+        productos.add(new Producto("Habichuelas (1lb)", 80, 80, Categoria.GRANOS));
+        productos.add(new Producto("Lentejas (1lb)", 75, 60, Categoria.GRANOS));
+        productos.add(new Producto("Pasta (1lb)", 55, 90, Categoria.GRANOS));
+ 
+        // CARNES
+        productos.add(new Producto("Pollo (1lb)", 250, 40, Categoria.CARNES));
+        productos.add(new Producto("Carne de Res (1lb)", 420, 30, Categoria.CARNES));
+        productos.add(new Producto("Salami (1lb)", 180, 50, Categoria.CARNES));
+        productos.add(new Producto("Jamon (1lb)", 220, 45, Categoria.CARNES));
+ 
+        // LACTEOS
+        productos.add(new Producto("Leche (1lt)", 75, 70, Categoria.LACTEOS));
+        productos.add(new Producto("Queso (1lb)", 200, 35, Categoria.LACTEOS));
+        productos.add(new Producto("Huevos (12und)", 180, 55, Categoria.LACTEOS));
+        productos.add(new Producto("Mantequilla", 160, 40, Categoria.LACTEOS));
+        productos.add(new Producto("Yogurt", 120, 30, Categoria.LACTEOS));
+ 
+        // PANADERIA
+        productos.add(new Producto("Pan de Agua", 50, 80, Categoria.PANADERIA));
+        productos.add(new Producto("Pan Molde", 95, 60, Categoria.PANADERIA));
+        productos.add(new Producto("Galletas", 60, 100, Categoria.PANADERIA));
+        productos.add(new Producto("Cereal", 210, 40, Categoria.PANADERIA));
+ 
+        // BEBIDAS
+        productos.add(new Producto("Refresco 2lt", 70, 80, Categoria.BEBIDAS));
+        productos.add(new Producto("Jugo Natural", 85, 50, Categoria.BEBIDAS));
+        productos.add(new Producto("Cafe (250g)", 150, 45, Categoria.BEBIDAS));
+        productos.add(new Producto("Agua (1.5lt)", 40, 120, Categoria.BEBIDAS));
+ 
+        // CONDIMENTOS
+        productos.add(new Producto("Azucar (2lb)", 60, 90, Categoria.CONDIMENTOS));
+        productos.add(new Producto("Sal (1lb)", 20, 100, Categoria.CONDIMENTOS));
+        productos.add(new Producto("Aceite (1lt)", 220, 60, Categoria.CONDIMENTOS));
+        productos.add(new Producto("Salsa de Tomate", 70, 75, Categoria.CONDIMENTOS));
+        productos.add(new Producto("Mayonesa", 130, 55, Categoria.CONDIMENTOS));
+        productos.add(new Producto("Ketchup", 120, 60, Categoria.CONDIMENTOS));
+ 
+        // LIMPIEZA
+        productos.add(new Producto("Jabon de Mano", 40, 80, Categoria.LIMPIEZA));
+        productos.add(new Producto("Detergente (1kg)", 110, 70, Categoria.LIMPIEZA));
+        productos.add(new Producto("Cloro (1lt)", 95, 65, Categoria.LIMPIEZA));
+        productos.add(new Producto("Papel Higienico x4", 150, 50, Categoria.LIMPIEZA));
+        productos.add(new Producto("Suavizante", 130, 45, Categoria.LIMPIEZA));
+ 
+        // SNACKS
+        productos.add(new Producto("Chocolate", 90, 60, Categoria.SNACKS));
+        productos.add(new Producto("Helado (1lt)", 200, 25, Categoria.SNACKS));
+        productos.add(new Producto("Papas Fritas", 85, 70, Categoria.SNACKS));
+        productos.add(new Producto("Chicles", 35, 100, Categoria.SNACKS));
+    }
+ 
+    public void mostrarTodos() {
+        System.out.println("\n╔══════════════════════════════════════════════════════════╗");
+        System.out.println("║                    PRODUCTOS DISPONIBLES                 ║");
+        System.out.println("╠══════════════════════════════════════════════════════════╣");
+        System.out.printf("  %-4s %-22s %-12s %-12s %-8s%n", "#", "Producto", "Precio", "Categoría", "Stock");
+        System.out.println("  ──────────────────────────────────────────────────────────");
+ 
+        for (int i = 0; i < productos.size(); i++) {
+            Producto p = productos.get(i);
+            String stockIndicador = p.stock <= 10 ? "⚠ BAJO" : String.valueOf(p.stock);
+            System.out.printf("  %-4d %-22s RD$%-9.2f %-12s %-8s%n",
+                    (i + 1), p.nombre, p.precio, p.categoria.name(), stockIndicador);
+        }
+ 
+        System.out.println("╚══════════════════════════════════════════════════════════╝");
+    }
+ 
+    public void mostrarPorCategoria(Categoria cat) {
+        System.out.println("\n====== CATEGORÍA: " + cat.name() + " ======");
+        int count = 1;
+        for (int i = 0; i < productos.size(); i++) {
+            if (productos.get(i).categoria == cat) {
+                System.out.printf("  %-4d %s%n", count++, productos.get(i));
+            }
+        }
+    }
+ 
+    public List<Producto> buscarPorNombre(String termino) {
+        List<Producto> resultados = new ArrayList<>();
+        for (Producto p : productos) {
+            if (p.nombre.toLowerCase().contains(termino.toLowerCase())) {
+                resultados.add(p);
+            }
+        }
+        return resultados;
+    }
+ 
+    public List<Producto> getProductos() {
+        return productos;
+    }
+}
+ 
+// =====================
+// CLASE PRINCIPAL
+// =====================
+public class MercadoPlusRD {
+ 
+    static Scanner sc = new Scanner(System.in);
+    static List<Compra> historialCompras = new ArrayList<>();
+ 
+    public static void main(String[] args) {
+ 
+        // Usuarios del sistema
+        Map<String, Usuario> usuarios = new HashMap<>();
+        usuarios.put("admin", new Usuario("admin", "1234", "Administrador"));
+        usuarios.put("cajero1", new Usuario("cajero1", "pass1", "Carlos Pérez"));
+        usuarios.put("cajero2", new Usuario("cajero2", "pass2", "María González"));
+ 
+        // Pantalla de bienvenida
+        mostrarBienvenida();
+ 
+        // LOGIN
+        Usuario usuarioActual = iniciarSesion(usuarios);
+        if (usuarioActual == null) return;
+ 
+        System.out.println("\n✅ Bienvenido/a, " + usuarioActual.nombreCompleto + "!");
+ 
+        // INVENTARIO
+        Inventario inventario = new Inventario();
+        inventario.inicializar();
+ 
+        Carrito carrito = new Carrito();
+        int opcion = -1;
+ 
+        // MENU PRINCIPAL
+        while (opcion != 0) {
+ 
+            System.out.println("\n╔══════════════════════╗");
+            System.out.println("║     MENÚ PRINCIPAL    ║");
+            System.out.println("╠══════════════════════╣");
+            System.out.println("║  1. Ver productos     ║");
+            System.out.println("║  2. Buscar producto   ║");
+            System.out.println("║  3. Ver por categoría ║");
+            System.out.println("║  4. Ver carrito       ║");
+            System.out.println("║  5. Modificar carrito ║");
+            System.out.println("║  6. Vaciar carrito    ║");
+            System.out.println("║  7. Ver historial     ║");
+            System.out.println("║  0. Finalizar compra  ║");
+            System.out.println("╚══════════════════════╝");
+            System.out.print("Opción: ");
+ 
+            opcion = leerEntero();
+ 
+            switch (opcion) {
+ 
+                case 1:
+                    inventario.mostrarTodos();
+                    System.out.print("\nSeleccione número de producto (0 para cancelar): ");
+                    int prod = leerEntero();
+                    if (prod > 0 && prod <= inventario.getProductos().size()) {
+                        Producto seleccionado = inventario.getProductos().get(prod - 1);
+                        System.out.println("\nProducto: " + seleccionado.nombre + " - RD$" + seleccionado.precio);
+                        System.out.print("Cantidad a agregar: ");
+                        int cant = leerEntero();
+                        if (cant > 0) carrito.agregarProducto(seleccionado, cant);
+                    }
+                    break;
+ 
+                case 2:
+                    sc.nextLine();
+                    System.out.print("Buscar producto: ");
+                    String termino = sc.nextLine();
+                    List<Producto> resultados = inventario.buscarPorNombre(termino);
+                    if (resultados.isEmpty()) {
+                        System.out.println("❌ No se encontraron productos.");
+                    } else {
+                        System.out.println("\n====== RESULTADOS ======");
+                        for (int i = 0; i < resultados.size(); i++) {
+                            System.out.println((i + 1) + ". " + resultados.get(i));
+                        }
+                        System.out.print("Seleccione (0 para cancelar): ");
+                        int sel = leerEntero();
+                        if (sel > 0 && sel <= resultados.size()) {
+                            System.out.print("Cantidad: ");
+                            int cant2 = leerEntero();
+                            if (cant2 > 0) carrito.agregarProducto(resultados.get(sel - 1), cant2);
+                        }
+                    }
+                    break;
+ 
+                case 3:
+                    menuCategorias(inventario, carrito);
+                    break;
+ 
+                case 4:
+                    carrito.mostrarCarrito();
+                    break;
+ 
+                case 5:
+                    modificarCarrito(carrito);
+                    break;
+ 
+                case 6:
+                    if (!carrito.estaVacio()) {
+                        System.out.print("¿Seguro que desea vaciar el carrito? (si/no): ");
+                        sc.nextLine();
+                        String conf = sc.nextLine();
+                        if (conf.equalsIgnoreCase("si")) carrito.vaciarCarrito();
+                    } else {
+                        System.out.println("🛒 El carrito ya está vacío.");
+                    }
+                    break;
+ 
+                case 7:
+                    mostrarHistorial();
+                    break;
+ 
+                case 0:
+                    break;
+ 
+                default:
+                    System.out.println("❌ Opción no válida.");
+            }
+        }
+ 
+        // VERIFICAR CARRITO VACÍO
+        if (carrito.estaVacio()) {
+            System.out.println("\n⚠ Carrito vacío. No hay productos para facturar.");
+            System.out.println("¡Hasta pronto!");
+            return;
+        }
+ 
+        // DATOS DEL CLIENTE
+        sc.nextLine();
+        System.out.println("\n====== DATOS DEL CLIENTE ======");
+        System.out.print("Nombre completo: ");
+        String nombre = sc.nextLine();
+ 
+        System.out.print("Cédula: ");
+        String cedula = sc.nextLine();
+ 
+        System.out.print("Dirección (opcional): ");
+        String direccion = sc.nextLine();
+ 
+        System.out.print("Teléfono (opcional): ");
+        String telefono = sc.nextLine();
+ 
+        // DESCUENTO / CUPÓN
+        double total = carrito.calcularTotal();
+        double descuento = aplicarDescuentos(total);
+        double desc = total * (descuento / 100);
+        double totalConDesc = total - desc;
+ 
+        // ITBIS (18%)
+        double itbis = totalConDesc * 0.18;
+        double totalFinal = totalConDesc + itbis;
+ 
+        // MÉTODO DE PAGO
+        MetodoPago metodoPago = seleccionarMetodoPago();
+        double vuelto = 0;
+ 
+        if (metodoPago == MetodoPago.EFECTIVO) {
+            System.out.printf("%nTOTAL A PAGAR (con ITBIS): RD$%.2f%n", totalFinal);
+            double pago = 0;
+            while (pago < totalFinal) {
+                System.out.print("Pago en efectivo: RD$ ");
+                pago = leerDouble();
+                if (pago < totalFinal) {
+                    System.out.printf("❌ Monto insuficiente. Faltan RD$%.2f%n", totalFinal - pago);
+                }
+            }
+            vuelto = pago - totalFinal;
+        } else {
+            System.out.println("✔ Pago procesado por " + metodoPago.name() + ".");
+        }
+ 
+ 
+        for (ItemCarrito item : carrito.obtenerItems()) {
+            item.producto.reducirStock(item.cantidad);
+        }
+ 
+  
+        String fechaActual = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+        historialCompras.add(new Compra(fechaActual, totalFinal,
+                carrito.obtenerItems(), metodoPago.name()));
+
+        imprimirFactura(nombre, cedula, direccion, telefono,
+                carrito, total, desc, descuento, itbis,
+                totalFinal, vuelto, metodoPago, fechaActual);
+    }
+ 
+
+    static void mostrarBienvenida() {
+        System.out.println("╔══════════════════════════════════════╗");
+        System.out.println("║                                      ║");
+        System.out.println("║        🛒  MERCADO PLUS RD  🛒       ║");
+        System.out.println("║     Sistema de Punto de Venta v2.0   ║");
+        System.out.println("║                                      ║");
+        System.out.println("╚══════════════════════════════════════╝");
+    }
+ 
+    static Usuario iniciarSesion(Map<String, Usuario> usuarios) {
+        int intentos = 0;
+        while (intentos < 3) {
+            System.out.print("\nUsuario: ");
+            String u = sc.nextLine();
+            System.out.print("Contraseña: ");
+            String p = sc.nextLine();
+ 
+            if (usuarios.containsKey(u)) {
+                Usuario user = usuarios.get(u);
+                if (user.bloqueado) {
+                    System.out.println("🔒 Usuario bloqueado por múltiples intentos fallidos.");
+                    return null;
+                }
+                if (user.verificarPassword(p)) return user;
+            }
+ 
+            intentos++;
+            System.out.println("❌ Credenciales incorrectas. Intentos restantes: " + (3 - intentos));
+        }
+        System.out.println("🔒 Acceso bloqueado por seguridad.");
+        return null;
+    }
+ 
+    static void menuCategorias(Inventario inventario, Carrito carrito) {
+        System.out.println("\n====== CATEGORÍAS ======");
+        Categoria[] cats = Categoria.values();
+        for (int i = 0; i < cats.length; i++) {
+            System.out.println((i + 1) + ". " + cats[i].name());
+        }
+        System.out.print("Seleccione categoría: ");
+        int catSel = leerEntero();
+        if (catSel > 0 && catSel <= cats.length) {
+            inventario.mostrarPorCategoria(cats[catSel - 1]);
+            System.out.print("Seleccione producto por número en inventario (0 para volver): ");
+            int sel = leerEntero();
+            List<Producto> todosProductos = inventario.getProductos();
+            // Filtrar índices de la categoría seleccionada
+            List<Integer> indices = new ArrayList<>();
+            for (int i = 0; i < todosProductos.size(); i++) {
+                if (todosProductos.get(i).categoria == cats[catSel - 1]) indices.add(i);
+            }
+            if (sel > 0 && sel <= indices.size()) {
+                Producto p = todosProductos.get(indices.get(sel - 1));
+                System.out.print("Cantidad: ");
+                int cant = leerEntero();
+                if (cant > 0) carrito.agregarProducto(p, cant);
+            }
+        }
+    }
+ 
+    static void modificarCarrito(Carrito carrito) {
+        if (carrito.estaVacio()) {
+            System.out.println("🛒 El carrito está vacío.");
+            return;
+        }
+        carrito.mostrarCarrito();
+        System.out.println("\n1. Cambiar cantidad   2. Eliminar producto");
+        System.out.print("Opción: ");
+        int op = leerEntero();
+        System.out.print("Número de producto: ");
+        int num = leerEntero();
+        if (op == 1) {
+            System.out.print("Nueva cantidad: ");
+            int nuevaCant = leerEntero();
+            carrito.modificarCantidad(num - 1, nuevaCant);
+        } else if (op == 2) {
+            carrito.eliminarProducto(num - 1);
+        }
+    }
+ 
+    static double aplicarDescuentos(double total) {
+        double descuento = 0;
+ 
+
+        if (total >= 5000) {
+            System.out.println("🎉 ¡Descuento automático del 10% por compra mayor a RD$5,000!");
+            descuento = 10;
+        } else if (total >= 2000) {
+            System.out.println("🎉 ¡Descuento automático del 5% por compra mayor a RD$2,000!");
+            descuento = 5;
+        }
+ 
+
+        sc.nextLine();
+        System.out.print("¿Tiene cupón de descuento? (si/no): ");
+        String cupon = sc.nextLine();
+ 
+        if (cupon.equalsIgnoreCase("si")) {
+            System.out.print("Ingrese código de cupón: ");
+            String codigo = sc.nextLine();
+ 
+            Map<String, Double> cupones = new HashMap<>();
+            cupones.put("MERCADO10", 10.0);
+            cupones.put("BIENVENIDO", 15.0);
+            cupones.put("CLIENTE20", 20.0);
+            cupones.put("PROMO5", 5.0);
+ 
+            if (cupones.containsKey(codigo.toUpperCase())) {
+                double cuponDesc = cupones.get(codigo.toUpperCase());
+                descuento = Math.max(descuento, cuponDesc);
+                System.out.println("✔ Cupón válido! Descuento: " + descuento + "%");
+            } else {
+                System.out.println("❌ Cupón inválido.");
+            }
+        }
+ 
+        return descuento;
+    }
+ 
+    static MetodoPago seleccionarMetodoPago() {
+        System.out.println("\n====== MÉTODO DE PAGO ======");
+        System.out.println("1. Efectivo");
+        System.out.println("2. Tarjeta");
+        System.out.println("3. Transferencia");
+        System.out.print("Seleccione: ");
+        int op = leerEntero();
+        return switch (op) {
+            case 2 -> MetodoPago.TARJETA;
+            case 3 -> MetodoPago.TRANSFERENCIA;
+            default -> MetodoPago.EFECTIVO;
+        };
+    }
+ 
+    static void mostrarHistorial() {
+        if (historialCompras.isEmpty()) {
+            System.out.println("\n📋 No hay compras registradas en esta sesión.");
+            return;
+        }
+        System.out.println("\n====== HISTORIAL DE COMPRAS ======");
+        for (int i = 0; i < historialCompras.size(); i++) {
+            Compra c = historialCompras.get(i);
+            System.out.printf("%d. Fecha: %-22s Total: RD$%-10.2f Método: %s (%d productos)%n",
+                    i + 1, c.fecha, c.total, c.metodoPago, c.items.size());
+        }
+        System.out.printf("Total de ventas: RD$%.2f%n",
+                historialCompras.stream().mapToDouble(c -> c.total).sum());
+    }
+ 
+    static void imprimirFactura(String nombre, String cedula, String direccion, String telefono,
+            Carrito carrito, double subtotal, double desc, double descPct,
+            double itbis, double totalFinal, double vuelto,
+            MetodoPago metodoPago, String fecha) {
+ 
+        String linea = "═".repeat(48);
+        String lineaCorta = "─".repeat(48);
+ 
+        System.out.println("\n╔" + linea + "╗");
+        System.out.println("║" + centrar("MERCADO PLUS RD", 48) + "║");
+        System.out.println("║" + centrar("Factura de Compra", 48) + "║");
+        System.out.println("║" + centrar("RNC: 1-31-12345-6", 48) + "║");
+        System.out.println("╠" + linea + "╣");
+        System.out.println("║  Fecha : " + padRight(fecha, 37) + "║");
+        System.out.println("║  Cliente: " + padRight(nombre, 36) + "║");
+        System.out.println("║  Cédula : " + padRight(cedula, 36) + "║");
+        if (!direccion.isEmpty())
+            System.out.println("║  Dir.   : " + padRight(direccion, 36) + "║");
+        if (!telefono.isEmpty())
+            System.out.println("║  Tel.   : " + padRight(telefono, 36) + "║");
+        System.out.println("╠" + linea + "╣");
+        System.out.printf("║  %-22s %-5s %-16s║%n", "Producto", "Cant", "Subtotal");
+        System.out.println("║  " + lineaCorta + "║");
+ 
+        for (ItemCarrito item : carrito.obtenerItems()) {
+            System.out.printf("║  %-22s %-5d RD$%-13.2f║%n",
+                    item.producto.nombre, item.cantidad, item.subtotal());
+        }
+ 
+        System.out.println("╠" + linea + "╣");
+        System.out.printf("║  %-30s RD$%11.2f║%n", "Subtotal:", subtotal);
+        if (desc > 0)
+            System.out.printf("║  %-30s -RD$%10.2f║%n", "Descuento (" + descPct + "%):", desc);
+        System.out.printf("║  %-30s RD$%11.2f║%n", "ITBIS (18%):", itbis);
+        System.out.printf("║  %-30s RD$%11.2f║%n", "TOTAL:", totalFinal);
+        System.out.println("╠" + linea + "╣");
+        System.out.printf("║  %-30s %-14s║%n", "Método de pago:", metodoPago.name());
+        if (metodoPago == MetodoPago.EFECTIVO && vuelto >= 0)
+            System.out.printf("║  %-30s RD$%11.2f║%n", "Vuelto:", vuelto);
+        System.out.println("╠" + linea + "╣");
+        System.out.println("║" + centrar("¡Gracias por comprar en Mercado Plus RD!", 48) + "║");
+        System.out.println("║" + centrar("Fue un placer atenderle. ¡Vuelva pronto!", 48) + "║");
+        System.out.println("╚" + linea + "╝");
+    }
+ 
+    // Helpers de formato
+    static String centrar(String texto, int ancho) {
+        if (texto.length() >= ancho) return texto;
+        int padding = (ancho - texto.length()) / 2;
+        return " ".repeat(padding) + texto + " ".repeat(ancho - texto.length() - padding);
+    }
+ 
+    static String padRight(String texto, int ancho) {
+        if (texto.length() >= ancho) return texto.substring(0, ancho);
+        return texto + " ".repeat(ancho - texto.length());
+    }
+ 
+    static int leerEntero() {
+        while (true) {
+            try {
+                int val = sc.nextInt();
+                sc.nextLine();
+                return val;
+            } catch (InputMismatchException e) {
+                sc.nextLine();
+                System.out.print("❌ Ingrese un número válido: ");
+            }
+        }
+    }
+ 
+    static double leerDouble() {
+        while (true) {
+            try {
+                double val = sc.nextDouble();
+                sc.nextLine();
+                return val;
+            } catch (InputMismatchException e) {
+                sc.nextLine();
+                System.out.print("❌ Ingrese un monto válido: ");
+            }
+        }
+    }
+}
